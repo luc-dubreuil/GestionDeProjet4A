@@ -1,0 +1,18 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(bestglm)
+library(VGAM)
+library(ellipse)
+library(leaps)
+library(MASS)
+library(corrplot)
+```
+

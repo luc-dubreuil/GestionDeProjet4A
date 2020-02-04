@@ -1,0 +1,172 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r,echo=F}
+library(ggplot2)
+library(gridExtra)
+library(bestglm)
+library(VGAM)
+#library(ggfortify)
+library(ellipse)
+library(leaps)
+library(MASS)
+library(corrplot)
+
+```
+
+
+```{r}
+data(SAheart)
+SAheart$chd<-as.factor(SAheart$chd)
+str(SAheart)
+?SAheart
+```
+
+```{r}
+summary(SAheart)
+```
+
+
+```{r}
+chd_ldl = glm(chd~ldl,data=SAheart,family=binomial(link="x"))
+attributes(chd_ldl)
+summary(chd_ldl)
+PseudoR2 = (chd_ldl$null.deviance-chd_ldl$deviance)/chd_ldl$null.deviance
+print(PseudoR2)
+T = (chd_ldl$null.deviance-chd_ldl$deviance)
+print(T)
+```
+
+```{r}
+confint(chd_ldl)
+confint.default(chd_ldl)
+```
+
+```{r}
+pihat<-predict(chd_ldl,type="response")
+df1<-data.frame(ldl=SAheart$ldl,pihat=pihat,Yihat=as.numeric(pihat>0.5),Yi=as.numeric(SAheart$chd)-1)
+ggplot(df1)+ 
+geom_point(aes(x=ldl,y=Yihat),col="blue")+ 
+geom_smooth(aes(x=ldl,y=pihat),col="black")+
+geom_point(aes(x=ldl,y=Yi),col="green",shape=2)+
+xlab("ldl")+
+ylab("pi / Yhat / Y")
+```
+
+```{r}
+predict(chd_ldl,newdata=data.frame(ldl=4.75),type="response")
+predict(chd_ldl,newdata=data.frame(ldl=4.75),type="link")
+```
+
+```{r}
+chd_famhist <- glm(chd~famhist,data=SAheart,family=binomial(link=logit))
+summary(chd_famhist)
+```
+
+```{r}
+predict(chd_famhist,newdata=data.frame(famhist=1),type="response")
+predict(chd_famhist,newdata=data.frame(famhist=1),type="link")
+```
+
+```{r}
+modellogit <- glm(chd~.,data=SAheart,family=binomial(link=logit))
+summary(modellogit)
+```
+
+```{r}
+library(bestglm)
+bestglm(SAheart,family = binomial,IC="AIC")
+bestglm(SAheart,family = binomial,IC="BIC")
+step.backward = step(modellogit)
+step.backward = step(modellogit,direction = "backward",k=log(nrow(SAheart)))
+```
+
+```{r}
+modelbest <- glm(chd~ldl+typea+tobacco+famhist+age,data=SAheart,family=binomial(link=logit))
+summary(modelbest)
+PseudoR2 = (modelbest$null.deviance-modelbest$deviance)/modelbest$null.deviance
+print(PseudoR2)
+```
+
+```{r}
+a <- anova(modelbest,modellogit,test="Chisq")
+print(a)
+```
+
+```{r}
+modellogitinter <- glm(chd~.^2,data=SAheart,family=binomial(link=logit))
+summary(modellogitinter)
+```
+
+```{r}
+modelbestinter = step(modellogitinter)
+summary(modelbestinter)
+```
+```{r}
+ecrin<-read.table("ecrin.txt",header=T)
+ecrin$STA<-as.factor(ecrin$STA)
+ecrin$HEU<-as.factor(ecrin$HEU)
+ecrin$SEM<-as.factor(ecrin$SEM)
+```
+
+
+```{r}
+summary(ecrin)
+head(ecrin)
+```
+
+```{r}
+modlm <- lm(RIC~.,data=ecrin)
+summary(modlm)
+```
+
+```{r}
+modpois <- glm(RIC~.,data=ecrin,family=poisson(link=log))
+summary(modpois)
+```
+
+```{r}
+PseudoR2 = (modpois$null.deviance-modpois$deviance)/modpois$null.deviance
+print(PseudoR2)
+```
+
+```{r}
+modreg <- glm(RIC~.,data=ecrin,family=gaussian(link=identity))
+summary(modreg)
+```
+
+```{r}
+PseudoR2_bis = (modreg$null.deviance-modreg$deviance)/modreg$null.deviance
+print(PseudoR2_bis)
+```
+
+```{r}
+modbinneg <-glm(RIC~.,data=ecrin,family=quasipoisson(link="log"))
+summary(modbinneg)
+```
+
+```{r}
+l<-300
+perm<-sample(nrow(SAheart))
+#echantillon d'apprentissage
+dapp<-SAheart[perm[1:l],]
+#echantillon test
+dtest<-SAheart[-perm[1:l],]
+modelapp<-glm(chd~tobacco+ldl+famhist+typea+age,family=binomial,data=dapp)
+prev<-predict(modelapp,newdata=dtest,type="response")
+mean(as.numeric(prev>0.5)!=dtest$chd)
+```
+
+```{r}
+library(ROCR)
+perflogit1=performance(prediction(prev1,dtest$chd),"tpr","fpr")
+perflogit2=performance(prediction(prev2,dtest$chd),"tpr","fpr")
+plot(perflogit1,col="black")
+plot(perflogit2,col="blue",add=TRUE)
+```
+
