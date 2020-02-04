@@ -1,0 +1,40 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(bestglm)
+library(VGAM)
+library(ellipse)
+library(leaps)
+library(MASS)
+library(corrplot)
+```
+
+Importation des données :
+```{r}
+Y_train <- read.csv("~/4A/Projet_4A/GestionDeProjet4A/Données/Y_train_sl9m6Jh.csv")
+X_train <- read.csv("~/4A/Projet_4A/GestionDeProjet4A/Données/X_train_v2.csv")
+X_test <- read.csv("~/4A/Projet_4A/GestionDeProjet4A/Données/X_test_v2.csv")
+Y_test_random <- read.csv("~/4A/Projet_4A/GestionDeProjet4A/Données/Y_test_random.csv")
+WindFarms<- read.table("~/4A/Projet_4A/GestionDeProjet4A/Données/WindFarms_complementary_data.csv", sep=";", quote="\"")
+```
+
+Première visualisation
+
+```{r}
+hist(Y_train$Production)
+hist(Y_test_random$Production)
+```
+
+```{r}
+temp_D2 <- X_train[,c(6,9,12,15,18)]
+model1 <- lm(Y_train$Production[48:2423] ~ temp_D2[48:2423,])
+summary(model1)
+```
+
