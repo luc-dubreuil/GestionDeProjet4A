@@ -1,0 +1,46 @@
+---
+title: "Debut"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(gridExtra)
+library(ellipse)
+library(MASS)
+library(corrplot)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Importation des données
+
+```{r}
+# 37,375 rows
+X_train <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/X_train_v2.csv")
+Y_train <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/Y_train_sl9m6Jh.csv")
+
+# 36,529 rows
+X_test <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/X_test_v2.csv")
+Y_test_random <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/Y_test_random.csv")
+```
+
+## Première visualisation de la production d'énergie (Y)
+
+```{r}
+plot(Y_train, type="l", main = "Y_train")
+```
+
+```{r}
+plot(Y_test_random, type="l", main = "Y_test_random")
+```
+
+# Données dispos
+
+## Température
+
+```{r}
+
+```
+
+
+
