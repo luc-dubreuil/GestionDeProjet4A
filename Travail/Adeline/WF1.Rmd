@@ -1,0 +1,150 @@
+---
+title: "WF1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(MASS)
+library(corrplot)
+```
+
+
+## Importation des données
+
+```{r}
+# 37,375 rows
+#X_train <- read.csv("./Data/X_train_v2.csv")
+#Y_train <- read.csv("./Data/Y_train_sl9m6Jh.csv")
+X_train <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/X_train_v2.csv")
+Y_train <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/Y_train_sl9m6Jh.csv")
+
+# 36,529 rows
+#X_test <- read.csv("./Data/X_test_v2.csv")
+#Y_test_random <- read.csv("./Data/Y_test_random.csv")
+X_test <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/X_test_v2.csv")
+Y_test_random <- read.csv("~/Bureau/4GMM/Projet/GestionDeProjet4A/Données/Y_test_random.csv")
+```
+
+## Données disponibles
+
+```{r}
+subsetL <- 2:6240   # WF1
+subsetC <- 16:18    # NWP1 - Yesterday 00h - U,V,T
+```
+
+```{r}
+data1 <- X_train[subsetL, subsetC]
+data2 <- cbind(Y_train[subsetL, -1], data1)
+names(data2) = c("Y","U","V","T")
+summary(data2)
+```
+
+Les données manquantes correspondent au premier jour de l'étude (pas de données météo dispos de la veille) et à la journée du 14 juillet.
+
+```{r}
+data3 <- data2[complete.cases(data2),]
+summary(data3)
+```
+
+## Création de données
+
+```{r}
+data4 <- data3
+nblignes <- nrow(data4)
+data4$F <- sqrt(data3$U^2 + data3$V^2)
+data4$GT <- c(0,abs(data4[2:nblignes,"T"]-data4[1:nblignes-1,"T"])/data4[2:nblignes,"T"])*100
+eps <- 10e-3
+data4$lGT <- log(data4$GT+eps)
+summary(data4)
+```
+
+## Etude des données
+
+```{r}
+summary(lm(Y~., data=data4))
+```
+
+Essais avec les modèles trouvés précédemment
+
+```{r}
+summary(lm(Y ~ ., data = data4))           # R² = 0.6137
+summary(lm(Y ~ .^2, data = data4))         # R² = 0.63
+```
+
+```{r}
+plot(Y~atan(V/U), data=data4)
+```
+
+```{r}
+data4$angle <- atan(data4$V/data4$U)
+data4$cos <- data4$U/data4$F
+data4$sin <- data4$V/data4$F
+```
+
+
+## Arbre de décision
+
+```{r}
+library(rpart)
+library(partykit)
+```
+
+
+Création du set de test
+
+```{r}
+set.seed(564) # initialisation du générateur
+# Extraction des échantillons
+test.ratio=.2   # part de l'échantillon test
+npop=nrow(data4) # nombre de lignes dans les données
+nvar=ncol(data4) # nombre de colonnes
+# taille de l'échantillon test
+ntest=ceiling(npop*test.ratio) 
+# indices de l'échantillon test
+testi=sample(1:npop,ntest)
+# indices de l'échantillon d'apprentissage
+appri=setdiff(1:npop,testi) 
+```
+
+```{r}
+# construction de l'échantillon d'apprentissage
+datappr=data4[appri,-11] 
+# construction de l'échantillon test
+datestr=data4[testi,-11] 
+```
+
+```{r}
+tree.reg <- rpart(Y~., data = datappr, control = rpart.control(cp=0.001))
+xmat=xpred.rpart(tree.reg)
+xerr=(xmat-datappr[,"Y"])^2
+CVerr=apply(xerr,2,sum)
+cpMin=as.numeric(attributes(which.min(CVerr))$names)
+tree.reg2 <- rpart(Y~., data = datappr, control = rpart.control(cp=cpMin))
+```
+
+```{r}
+plot(as.party(tree.reg2), type="simple")
+```
+
+```{r}
+plot(tree.reg2)
+text(tree.reg2)
+```
+
+```{r}
+# Calcul des prévisions
+pred.treer <- predict(tree.reg2,newdata=datestr)
+```
+
+```{r}
+library(randomForest)
+rf.reg <- randomForest(Y~., data=datappr,xtest=datestr[,-1],ytest=datestr[,"Y"],
+   ntree=500,do.trace=50,importance=TRUE, mtry=8)
+```
+
