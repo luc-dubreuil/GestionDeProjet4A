@@ -1,0 +1,171 @@
+---
+title: "Travail Adeline"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(MASS)
+library(corrplot)
+```
+
+
+## Importation des données
+
+```{r}
+# 37,375 rows
+X_train <- read.csv("./Data/X_train_v2.csv")
+Y_train <- read.csv("./Data/Y_train_sl9m6Jh.csv")
+
+# 36,529 rows
+X_test <- read.csv("./Data/X_test_v2.csv")
+Y_test_random <- read.csv("./Data/Y_test_random.csv")
+```
+
+## Données disponibles
+
+```{r}
+subsetL <- 25:192   # WF1 - Week 1
+subsetC <- 16:18    # NWP1 - Yesterday 00h - U,V,T
+```
+
+```{r}
+data1 <- X_train[subsetL, subsetC]
+data2 <- cbind(Y_train[subsetL, -1], data1)
+names(data2) = c("Y","U","V","T")
+summary(data2)
+```
+
+```{r}
+par(mfrow=c(1,3))
+hist(data2$U)
+hist(data2$V)
+hist(data2$T)
+```
+
+
+### Vent
+
+```{r}
+subsetVent <- c("Y","U","V")
+data3 <- data2[ , subsetVent]
+```
+
+```{r}
+data3$F <- sqrt(data3$U^2 + data3$V^2)
+summary(data3)
+```
+
+```{r}
+hist(data3$F)
+```
+
+```{r}
+pairs(data3)
+```
+
+```{r}
+with(data = data3, plot(Y ~ F, main = "Y ~ F"))
+```
+
+```{r}
+#summary(lm(Y ~ V-1, data = data3))          R² = 0.8629
+#summary(lm(Y ~ F-1, data = data3))          R² = 0.8231
+#summary(lm(Y ~ I(V^2)-1, data = data3))     R² = 0.9087
+summary(lm(Y ~ I(F^2)-1, data = data3))    # R² = 0.9122
+```
+
+
+### Température
+
+```{r}
+subsetTemp <- c("Y","T")
+data4 <- data2[ , subsetTemp]
+nblignes <- nrow(data4)
+```
+
+```{r}
+data4$GT <- c(0,abs(data4[2:nblignes,"T"]-data4[1:nblignes-1,"T"])/data4[2:nblignes,"T"])
+eps <- 2*10e-5
+data4$lGT <- log(data4$GT+eps)
+summary(data4)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data4$GT)
+hist(data4$lGT)
+```
+
+```{r}
+pairs(data4)
+```
+
+### Vent + Température
+
+```{r}
+data5 <- cbind(data3[,c(1,4)], data4[,c(3,4)])
+summary(data5)
+```
+
+```{r}
+pairs(data5)
+```
+
+```{r}
+#summary(lm(Y~.^2, data = data5))          R² = 0.8498
+summary(lm(Y~.^2-1, data = data5))       # R² = 0.8999
+#summary(lm(Y~F:lGT, data = data5))        R² = 0.8378
+```
+
+## Arbre de décision
+
+```{r}
+library(rpart)
+library(partykit)
+```
+
+```{r}
+tree.reg <- rpart(Y~., data = data5, control = rpart.control(cp=0.001))
+```
+
+```{r}
+plot(tree.reg)
+text(tree.reg)
+```
+
+```{r}
+xmat=xpred.rpart(tree.reg)
+xerr=(xmat-data5[,"Y"])^2
+CVerr=apply(xerr,2,sum)
+CVerr  #    CP           erreur
+```
+
+```{r}
+as.numeric(attributes(which.min(CVerr))$names)
+```
+
+```{r}
+tree.reg2 <- rpart(Y~., data = data5, control = rpart.control(cp=0.002901349))
+```
+
+```{r}
+plot(tree.reg2)
+text(tree.reg2)
+```
+
+```{r}
+plot(as.party(tree.reg), type="simple")
+```
+
+```{r}
+fit.tree=predict(tree.reg2)
+res.tree=fit.tree-data5[,"Y"]
+plot(fit.tree,res.tree)
+```
+
